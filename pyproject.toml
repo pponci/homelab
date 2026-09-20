@@ -1,0 +1,38 @@
+[project]
+name = "homelab"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = ["services/*"]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.8",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "B",
+    "ANN",
+]
+
+[tool.pyright]
+include = ["services/*/src", "services/*/tests"]
+exclude = ["**/node_modules", "**/__pycache__"]
+strict = ["services/*/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["services/*/tests"]
+python_files = ["test_*.py"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
