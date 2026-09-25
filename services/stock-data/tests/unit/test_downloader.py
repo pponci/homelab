@@ -88,6 +88,29 @@ def test_calls_history_with_empty_history(mock_ticker_cls: MagicMock) -> None:
 # function : save_data_csv()
 
 
+@pt.fixture
+def fake_data() -> pd.DataFrame:
+
+    df = pd.DataFrame(
+        data={
+            "Datetime": pd.to_datetime(
+                [
+                    "2026-01-01 09:30",
+                    "2026-01-01 15:59",
+                    "2026-01-02 09:30",
+                    "2026-01-02 12:00",
+                    "2026-01-03 09:30",
+                    "2026-01-03 09:33",
+                    "2026-01-03 10:30",
+                ]
+            ),
+            "Close": [1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 3.5],
+        }
+    )
+
+    return df
+
+
 def make_frozen_datetime(fixed_date: datetime.date) -> type[datetime.datetime]:
     real_datetime = datetime.datetime
 
@@ -148,67 +171,152 @@ def test_saved_df_content_matches(tmp_path: Path, fake_data: pd.DataFrame) -> No
     assert fake_data.equals(read_data)
 
 
-# function : get_data_latest()
+# function : convert_to_rows()
 
 
 @pt.fixture
-def fake_data() -> pd.DataFrame:
-
-    df = pd.DataFrame(
-        data={
-            "Datetime": pd.to_datetime(
-                [
-                    "2026-01-01 09:30",
-                    "2026-01-01 15:59",
-                    "2026-01-02 09:30",
-                    "2026-01-02 12:00",
-                    "2026-01-03 09:30",
-                    "2026-01-03 09:33",
-                    "2026-01-03 10:30",
-                ]
+def fake_ohlcv() -> pd.DataFrame:
+    """
+    Two rows of OHLCV data with a tz-aware Datetime index,
+    matching what yfinance returns.
+    """
+    return pd.DataFrame(
+        {
+            "Datetime": pd.to_datetime(["2026-01-02 09:30", "2026-01-02 09:31"]).tz_localize(
+                "America/New_York"
             ),
-            "Close": [1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 3.5],
+            "Open": [100.0, 101.0],
+            "High": [102.0, 103.5],
+            "Low": [99.0, 100.5],
+            "Close": [101.0, 102.0],
+            "Volume": [1_000, 2_000],
         }
     )
 
-    return df
 
-
-def test_filter_to_target_date(fake_data: pd.DataFrame) -> None:
+def test_convert_to_rows_returns_one_row_per_record(fake_ohlcv: pd.DataFrame) -> None:
     """
-    Test the date filter correclty returns the
-    last and desired date data.
+    Number of output rows equals number of DataFrame rows.
     """
 
-    end = datetime.date(2026, 1, 4)
+    rows = dw.convert_to_rows(df=fake_ohlcv, ticker="AAPL")
 
-    data = dw.get_data_latest(df=fake_data, end=end)
-
-    assert set(data["Datetime"].dt.date) == {datetime.date(2026, 1, 3)}
-    assert len(data) == 3
+    assert len(rows) == len(fake_ohlcv)
 
 
-def test_end_date_before_all_data_returns_everything(fake_data: pd.DataFrame) -> None:
+def test_convert_to_rows_produces_expected_tuple(fake_ohlcv: pd.DataFrame) -> None:
     """
-    Tests that setting the filter date to earlier than
-    first data point returns all dataframe.
+    First row has the expected shape and values, in the right order.
     """
 
-    end = datetime.date(2025, 1, 1)
+    rows = dw.convert_to_rows(df=fake_ohlcv, ticker="AAPL")
 
-    data = dw.get_data_latest(df=fake_data, end=end)
+    assert rows[0] == (
+        "AAPL",
+        datetime.datetime(2026, 1, 2, 9, 30),
+        100.0,
+        102.0,
+        99.0,
+        101.0,
+        1_000,
+    )
 
-    assert data.equals(fake_data)
 
-
-def test_empty_input_dataframe() -> None:
+def test_convert_to_rows_strips_timezone(fake_ohlcv: pd.DataFrame) -> None:
     """
-    Test empty data frame input returns
-    an empty data frame as output.
+    tzinfo must be removed so it can be inserted into a `timestamp` column.
     """
 
-    empty_df = pd.DataFrame({"Datetime": pd.to_datetime([])})
+    rows = dw.convert_to_rows(df=fake_ohlcv, ticker="AAPL")
 
-    result = dw.get_data_latest(empty_df, datetime.date(2024, 1, 3))
+    assert rows[0][1].tzinfo is None
 
-    assert result.empty
+
+def test_convert_to_rows_casts_to_python_scalars(fake_ohlcv: pd.DataFrame) -> None:
+    """
+    Values must be native Python types so psycopg2 can adapt them.
+    """
+
+    rows = dw.convert_to_rows(df=fake_ohlcv, ticker="AAPL")
+    _, dt, open, high, low, close, volume = rows[0]
+
+    assert type(dt) is datetime.datetime
+    assert type(open) is float
+    assert type(high) is float
+    assert type(low) is float
+    assert type(close) is float
+    assert type(volume) is int
+
+
+def test_convert_to_rows_uses_ticker_argument(fake_ohlcv: pd.DataFrame) -> None:
+    """
+    Ticker is taken from the argument, not from the DataFrame.
+    """
+
+    rows = dw.convert_to_rows(df=fake_ohlcv, ticker="MSFT")
+
+    assert all(r[0] == "MSFT" for r in rows)
+
+
+def test_convert_to_rows_empty_dataframe_returns_empty_list() -> None:
+    """
+    Empty input yields empty output (no crash on `iterrows`).
+    """
+
+    empty = pd.DataFrame(columns=["Datetime", "Open", "High", "Low", "Close", "Volume"])
+
+    assert dw.convert_to_rows(df=empty, ticker="AAPL") == []
+
+
+# function : insert_rows()
+
+
+def test_insert_rows_uses_context_managed_cursor() -> None:
+    """
+    Cursor is created and entered as a context manager.
+    """
+
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+
+    dw.insert_rows(
+        conn=conn, rows=[("AAPL", datetime.datetime(2026, 1, 2), 1.0, 2.0, 0.5, 1.5, 100)]
+    )
+
+    conn.cursor.assert_called_once()
+    cur.executemany.assert_called_once()
+
+
+def test_insert_rows_passes_rows_to_executemany() -> None:
+    """
+    The `rows` list is forwarded unchanged to `executemany`.
+    """
+
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+
+    rows = [
+        ("AAPL", datetime.datetime(2026, 1, 2, 9, 30), 100.0, 102.0, 99.0, 101.0, 1_000),
+        ("AAPL", datetime.datetime(2026, 1, 2, 9, 31), 101.0, 103.5, 100.5, 102.0, 2_000),
+    ]
+
+    dw.insert_rows(conn=conn, rows=rows)
+
+    args, _ = cur.executemany.call_args
+    assert args[1] == rows
+
+
+def test_insert_rows_sql_targets_raw_prices_with_on_conflict() -> None:
+    """
+    SQL inserts into raw_prices with the conflict clause on the PK.
+    """
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+
+    dw.insert_rows(conn=conn, rows=[])
+
+    sql = cur.executemany.call_args.args[0]
+    normalized = " ".join(sql.split())
+
+    assert "INSERT INTO raw_prices" in normalized
+    assert "ON CONFLICT (ticker, ref_datetime) DO NOTHING" in normalized

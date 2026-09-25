@@ -15,6 +15,8 @@ CREATE TABLE raw_prices (
 CREATE INDEX idx_raw_prices_ref_datetime ON raw_prices (ref_datetime);
 CREATE INDEX idx_raw_prices_ticker ON raw_prices (ticker);
 
+ALTER TABLE raw_prices OWNER TO stocks_user;
+
 
 CREATE TABLE prices (
     ticker         text        NOT NULL,
@@ -30,3 +32,5 @@ CREATE TABLE prices (
 
 CREATE INDEX idx_prices_ref_datetime ON prices (ref_datetime);
 CREATE INDEX idx_prices_ticker ON prices (ticker);
+
+ALTER TABLE prices OWNER TO stocks_user;

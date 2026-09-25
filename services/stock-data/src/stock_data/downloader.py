@@ -2,6 +2,7 @@ import datetime
 import pathlib
 
 import pandas as pd
+import psycopg2 as pg
 import yfinance as yf
 
 
@@ -36,13 +37,42 @@ def save_data_csv(df: pd.DataFrame, dir: str, ticker: str) -> None:
     df.to_csv(path, index=False)
 
 
-def get_data_latest(df: pd.DataFrame, end: datetime.date) -> pd.DataFrame:
+def convert_to_rows(df: pd.DataFrame, ticker: str) -> list[tuple]:
     """
-    Get the data of the current day only.
+    Convert data frame into rows for insertion
+    into database.
     """
 
-    target_date = end - datetime.timedelta(days=1)
+    rows = []
 
-    data = df[df["Datetime"].dt.date >= target_date]
+    for _, r in df.iterrows():
+        rows.append(
+            (
+                ticker,
+                r["Datetime"].to_pydatetime().replace(tzinfo=None),
+                float(r["Open"]),
+                float(r["High"]),
+                float(r["Low"]),
+                float(r["Close"]),
+                int(r["Volume"]),
+            )
+        )
 
-    return data
+    return rows
+
+
+def insert_rows(conn: pg.extensions.connection, rows: list[tuple]) -> None:
+    """
+    Insert given rows into database.
+    """
+
+    with conn.cursor() as cur:
+        cur.executemany(
+            """
+            INSERT INTO raw_prices
+                (ticker, ref_datetime, v_open, v_high, v_low, v_close, v_volume)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (ticker, ref_datetime) DO NOTHING;
+            """,
+            rows,
+        )

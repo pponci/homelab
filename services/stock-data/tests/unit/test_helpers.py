@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest as pt
-from stock_data.helpers import get_tickers
+import stock_data.helpers as h
 
 # function : get_ticker()
 
@@ -25,7 +26,7 @@ def test_returns_tickers_from_env_path(tmp_path: Path, monkeypatch: pt.MonkeyPat
 
     monkeypatch.setenv("TICKER_PATH", str(file))
 
-    assert get_tickers() == tickers
+    assert h.get_tickers() == tickers
 
 
 def test_returns_empty_list_when_json_is_empty_list(
@@ -41,7 +42,7 @@ def test_returns_empty_list_when_json_is_empty_list(
 
     monkeypatch.setenv("TICKER_PATH", str(file))
 
-    assert get_tickers() == []
+    assert h.get_tickers() == []
 
 
 def test_missing_env_var_raises_keyerror(monkeypatch: pt.MonkeyPatch) -> None:
@@ -53,7 +54,7 @@ def test_missing_env_var_raises_keyerror(monkeypatch: pt.MonkeyPatch) -> None:
     monkeypatch.delenv("TICKER_PATH", raising=False)
 
     with pt.raises(KeyError):
-        get_tickers()
+        h.get_tickers()
 
 
 def test_missing_file_raises_filenotfounderror(tmp_path: Path, monkeypatch: pt.MonkeyPatch) -> None:
@@ -66,7 +67,7 @@ def test_missing_file_raises_filenotfounderror(tmp_path: Path, monkeypatch: pt.M
     monkeypatch.setenv("TICKER_PATH", str(missing_file))
 
     with pt.raises(FileNotFoundError):
-        get_tickers()
+        h.get_tickers()
 
 
 def test_invalid_json_raises_jsondecodeerror(tmp_path: Path, monkeypatch: pt.MonkeyPatch) -> None:
@@ -80,4 +81,68 @@ def test_invalid_json_raises_jsondecodeerror(tmp_path: Path, monkeypatch: pt.Mon
     monkeypatch.setenv("TICKER_PATH", str(file))
 
     with pt.raises(json.JSONDecodeError):
-        get_tickers()
+        h.get_tickers()
+
+
+# function : db_connection()
+
+
+@pt.fixture
+def db_env(monkeypatch: pt.MonkeyPatch) -> dict[str, str]:
+    """
+    Populate all env vars `db_connection` reads.
+    """
+
+    env = {
+        "DATABASE_HOST": "localhost",
+        "DATABASE_NAME": "stock_data",
+        "DATABASE_USERNAME": "stocks_user",
+        "DATABASE_PASSWORD": "hunter2",
+        "DATABASE_PORT": "5433",
+    }
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+    return env
+
+
+@patch("stock_data.helpers.pg.connect")
+def test_db_connection_returns_connection(mock_connect: MagicMock, db_env: dict[str, str]) -> None:
+    """
+    Return value is whatever `pg.connect` returns.
+    """
+
+    sentinel = object()
+    mock_connect.return_value = sentinel
+
+    assert h.db_connection() is sentinel
+
+
+@patch("stock_data.helpers.pg.connect")
+def test_db_connection_passes_env_vars(mock_connect: MagicMock, db_env: dict[str, str]) -> None:
+    """
+    Connection kwargs are taken verbatim from env vars.
+    """
+
+    h.db_connection()
+
+    mock_connect.assert_called_once_with(
+        host=db_env["DATABASE_HOST"],
+        database=db_env["DATABASE_NAME"],
+        user=db_env["DATABASE_USERNAME"],
+        password=db_env["DATABASE_PASSWORD"],
+        port=db_env["DATABASE_PORT"],
+    )
+
+
+def test_db_connection_missing_env_var_raises_keyerror(
+    monkeypatch: pt.MonkeyPatch, db_env: dict[str, str]
+) -> None:
+    """
+    Missing env var surfaces as KeyError (before any network call).
+    """
+
+    monkeypatch.delenv("DATABASE_HOST", raising=False)
+
+    with pt.raises(KeyError):
+        h.db_connection()
