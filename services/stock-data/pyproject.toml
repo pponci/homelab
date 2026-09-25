@@ -5,6 +5,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "pandas>=3.0.6",
+    "pathlib>=1.0.1",
     "psycopg2-binary>=2.9.13",
     "yfinance>=1.7.0",
 ]
