@@ -3,3 +3,5 @@ name: homelab
 include:
   - path: shared/postgres/docker-compose.yaml
     env_file: shared/postgres/.env
+  - path: shared/airflow/docker-compose.yaml
+    env_file: shared/airflow/.env
