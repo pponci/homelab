@@ -4,8 +4,10 @@ import pathlib
 import pandas as pd
 import yfinance as yf
 
+import stock_data.models as m
 
-def get_ticker_data(ticker: str, start: datetime.date, end: datetime.date) -> pd.DataFrame:
+
+def get_ticker_data(ticker: m.Ticker, start: datetime.date, end: datetime.date) -> pd.DataFrame:
     """
     Download the relevant data for one ticker in the given period.
     """
@@ -35,7 +37,7 @@ def get_ticker_data(ticker: str, start: datetime.date, end: datetime.date) -> pd
     return data[["ref_datetime", "v_open", "v_high", "v_low", "v_close", "v_volume"]]
 
 
-def save_data_csv(df: pd.DataFrame, dir: str, ticker: str) -> None:
+def save_data_csv(df: pd.DataFrame, dir: str, ticker: m.Ticker) -> None:
     """
     Save the downloaded ticker data to csv for
     back up.

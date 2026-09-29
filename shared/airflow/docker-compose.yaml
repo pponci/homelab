@@ -1,7 +1,7 @@
 x-airflow-common: &airflow-common
   build:
-    context: .
-    dockerfile: Dockerfile
+    context: ../..
+    dockerfile: shared/airflow/Dockerfile
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-postgres/${AIRFLOW_DB_NAME}
@@ -11,10 +11,18 @@ x-airflow-common: &airflow-common
     AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    DATABASE_HOST: ${STOCK_DATA_DB_HOST}
+    DATABASE_PORT: ${STOCK_DATA_DB_PORT}
+    DATABASE_NAME: ${STOCK_DATA_DB_NAME}
+    DATABASE_USERNAME: ${STOCK_DATA_DB_USERNAME}
+    DATABASE_PASSWORD: ${STOCK_DATA_DB_PASSWORD}
+    TICKER_PATH: ${TICKER_PATH}
+    SAVE_CSV_PATH: /opt/stock-csv
   volumes:
     - ./dags:/opt/airflow/dags
     - airflow-logs:/opt/airflow/logs
     - airflow-plugins:/opt/airflow/plugins
+    - ${SAVE_CSV_PATH}:/opt/stock-csv
   depends_on: &airflow-common-depends-on
     airflow-postgres:
       condition: service_healthy

@@ -9,6 +9,8 @@ members = ["services/*"]
 
 [dependency-groups]
 dev = [
+    "apache-airflow==3.2.2",
+    "apache-airflow-providers-fab>=3.10.0",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -28,9 +30,9 @@ select = [
 ]
 
 [tool.pyright]
-include = ["services/*/src", "services/*/tests"]
+include = ["services/*/src", "services/*/tests", "shared/airflow/dags"]
 exclude = ["**/node_modules", "**/__pycache__"]
-strict = ["services/*/src"]
+strict = ["services/*/src", "shared/airflow/dags"]
 
 [tool.pytest.ini_options]
 testpaths = ["services/*/tests"]

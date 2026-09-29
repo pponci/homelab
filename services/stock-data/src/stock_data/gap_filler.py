@@ -1,10 +1,11 @@
 import datetime
 
 import pandas as pd
-import psycopg2 as pg
+
+import stock_data.models as m
 
 
-def get_reference_minutes(conn: pg.extensions.connection, last_date: datetime.date) -> pd.DataFrame:
+def get_reference_minutes(conn: m.DbConnection, last_date: datetime.date) -> pd.DataFrame:
     """
     Get every datetime value for all ticker for
     the specified dates..
@@ -30,8 +31,8 @@ def get_reference_minutes(conn: pg.extensions.connection, last_date: datetime.da
 
 
 def get_last_date_ticker(
-    conn: pg.extensions.connection, tickers: list[str]
-) -> dict[str, datetime.date]:
+    conn: m.DbConnection, tickers: list[m.Ticker]
+) -> dict[m.Ticker, datetime.date]:
     """
     Get last available date from final table for
     all tickers.
@@ -66,7 +67,7 @@ def get_last_date_ticker(
 
 
 def get_existing_values(
-    conn: pg.extensions.connection, last_date: datetime.date, ticker: str
+    conn: m.DbConnection, last_date: datetime.date, ticker: m.Ticker
 ) -> pd.DataFrame:
     """
     Get exisiting data from last date for
@@ -97,8 +98,8 @@ def get_existing_values(
 
 
 def get_last_close_from_prices(
-    conn: pg.extensions.connection,
-    ticker: str,
+    conn: m.DbConnection,
+    ticker: m.Ticker,
     before: datetime.date,
 ) -> float | None:
     """
@@ -136,7 +137,7 @@ def get_last_close_from_prices(
 def fill_missing_values(
     datetimes: pd.DataFrame,
     existing_data: pd.DataFrame,
-    ticker: str,
+    ticker: m.Ticker,
     seed_close: float | None = None,
 ) -> pd.DataFrame:
     """

@@ -4,8 +4,10 @@ import os
 import pandas as pd
 import psycopg2 as pg
 
+import stock_data.models as m
 
-def get_tickers() -> list[str]:
+
+def get_tickers() -> list[m.Ticker]:
     """
     Loads the ticker list from the json in path
     from the env file.
@@ -19,7 +21,7 @@ def get_tickers() -> list[str]:
     return tickers
 
 
-def db_connection() -> pg.extensions.connection:
+def db_connection() -> m.DbConnection:
     """
     Create connection with
     database.
@@ -36,7 +38,7 @@ def db_connection() -> pg.extensions.connection:
     return conn
 
 
-def convert_to_rows(df: pd.DataFrame, ticker: str) -> list[tuple]:
+def convert_to_rows(df: pd.DataFrame, ticker: m.Ticker) -> list[m.Row]:
     """
     Convert data frame into rows for insertion
     into database.
@@ -60,7 +62,7 @@ def convert_to_rows(df: pd.DataFrame, ticker: str) -> list[tuple]:
     return rows
 
 
-def insert_rows(conn: pg.extensions.connection, rows: list[tuple], table: str) -> None:
+def insert_rows(conn: m.DbConnection, rows: list[m.Row], table: str) -> None:
     """
     Insert given rows into database.
     """
