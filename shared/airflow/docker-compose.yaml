@@ -20,8 +20,8 @@ x-airflow-common: &airflow-common
     SAVE_CSV_PATH: /opt/stock-csv
   volumes:
     - ./dags:/opt/airflow/dags
-    - airflow-logs:/opt/airflow/logs
-    - airflow-plugins:/opt/airflow/plugins
+    - /home/ponci/storage/docker-data/airflow/logs:/opt/airflow/logs
+    - /home/ponci/storage/docker-data/airflow/plugins:/opt/airflow/plugins
     - ${SAVE_CSV_PATH}:/opt/stock-csv
   depends_on: &airflow-common-depends-on
     airflow-postgres:
@@ -35,7 +35,7 @@ services:
       POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
       POSTGRES_DB: ${AIRFLOW_DB_NAME}
     volumes:
-      - airflow-pgdata:/var/lib/postgresql/data
+      - /home/ponci/storage/docker-data/airflow/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -115,8 +115,3 @@ services:
       airflow-init:
         condition: service_completed_successfully
     restart: unless-stopped
-
-volumes:
-  airflow-pgdata:
-  airflow-logs:
-  airflow-plugins:
