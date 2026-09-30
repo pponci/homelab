@@ -51,4 +51,5 @@ def save_data_csv(df: pd.DataFrame, dir: str, ticker: m.Ticker) -> None:
 
     path = day_dir / f"{ticker}_{session_date}.csv"
 
-    df.to_csv(path, index=False)
+    if not df.empty:
+        df.to_csv(path)

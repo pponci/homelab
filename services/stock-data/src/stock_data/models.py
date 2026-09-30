@@ -14,3 +14,8 @@ DbConnection: TypeAlias = psycopg2.extensions.connection
 
 class IntervalContext(TypedDict):
     data_interval_end: datetime.datetime
+
+
+class GapFillInput(TypedDict):
+    ticker: Ticker
+    last_date: datetime.date

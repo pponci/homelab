@@ -159,16 +159,15 @@ def test_creates_expected_directory_structure(tmp_path: Path) -> None:
     assert expected_dir.is_dir()
 
 
-def test_creates_expected_filename(tmp_path: Path) -> None:
+def test_creates_expected_filename(tmp_path: Path, fake_data: pd.DataFrame) -> None:
     """
     Test the function creates the right file name.
     """
 
-    df = pd.DataFrame()
     fixed_date = datetime.date(2026, 3, 15)
 
     with patch("stock_data.downloader.datetime.datetime", make_frozen_datetime(fixed_date)):
-        dw.save_data_csv(df=df, dir=str(tmp_path), ticker="AAPL")
+        dw.save_data_csv(df=fake_data, dir=str(tmp_path), ticker="AAPL")
 
     expected_file = tmp_path / "2026-03" / "2026-03-15" / "AAPL_2026-03-15.csv"
 
@@ -186,6 +185,6 @@ def test_saved_df_content_matches(tmp_path: Path, fake_data: pd.DataFrame) -> No
         dw.save_data_csv(df=fake_data, dir=str(tmp_path), ticker="AAPL")
 
     file_path = tmp_path / "2026-03" / "2026-03-15" / "AAPL_2026-03-15.csv"
-    read_data = pd.read_csv(file_path, parse_dates=["Datetime"])
+    read_data = pd.read_csv(file_path, index_col=0, parse_dates=["Datetime"])
 
     assert fake_data.equals(read_data)
