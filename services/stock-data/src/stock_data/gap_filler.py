@@ -5,7 +5,9 @@ import pandas as pd
 import stock_data.models as m
 
 
-def get_reference_minutes(conn: m.DbConnection, last_date: datetime.date) -> pd.DataFrame:
+def get_reference_minutes(
+    conn: m.DbConnection, last_date: datetime.date, max_date: datetime.date
+) -> pd.DataFrame:
     """
     Get every datetime value for all ticker for
     the specified dates..
@@ -18,6 +20,8 @@ def get_reference_minutes(conn: m.DbConnection, last_date: datetime.date) -> pd.
                 raw_prices
             WHERE
                 ref_datetime::date >= '{last_date}'
+                    AND
+                ref_datetime::date <= '{max_date}'
             ORDER BY
                 ref_datetime;
             """

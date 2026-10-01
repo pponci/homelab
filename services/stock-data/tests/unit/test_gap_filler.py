@@ -31,7 +31,9 @@ def test_get_reference_minutes_returns_ref_datetime_column() -> None:
         (datetime.datetime(2026, 1, 2, 9, 31),),
     ]
 
-    result = gp.get_reference_minutes(conn=conn, last_date=datetime.date(2026, 1, 2))
+    result = gp.get_reference_minutes(
+        conn=conn, last_date=datetime.date(2026, 1, 2), max_date=datetime.date(2026, 1, 2)
+    )
 
     assert list(result.columns) == ["ref_datetime"]
     assert len(result) == 2
@@ -49,7 +51,9 @@ def test_get_reference_minutes_extracts_first_column() -> None:
     ]
     cur.fetchall.return_value = [(ts,) for ts in expected]
 
-    result = gp.get_reference_minutes(conn=conn, last_date=datetime.date(2026, 1, 2))
+    result = gp.get_reference_minutes(
+        conn=conn, last_date=datetime.date(2026, 1, 2), max_date=datetime.date(2026, 1, 2)
+    )
 
     assert result["ref_datetime"].tolist() == expected
 
@@ -62,7 +66,9 @@ def test_get_reference_minutes_empty_result_still_has_column() -> None:
     conn, cur = make_conn()
     cur.fetchall.return_value = []
 
-    result = gp.get_reference_minutes(conn=conn, last_date=datetime.date(2026, 1, 2))
+    result = gp.get_reference_minutes(
+        conn=conn, last_date=datetime.date(2026, 1, 2), max_date=datetime.date(2026, 1, 2)
+    )
 
     assert result.empty
     assert list(result.columns) == ["ref_datetime"]
@@ -76,11 +82,33 @@ def test_get_reference_minutes_query_contains_last_date() -> None:
     conn, cur = make_conn()
     cur.fetchall.return_value = []
 
-    gp.get_reference_minutes(conn=conn, last_date=datetime.date(2026, 1, 2))
+    gp.get_reference_minutes(
+        conn=conn, last_date=datetime.date(2026, 1, 2), max_date=datetime.date(2026, 1, 2)
+    )
 
     sql = cur.execute.call_args.args[0]
     assert "2026-01-02" in sql
     assert "raw_prices" in sql
+
+
+def test_get_reference_minutes_query_contains_max_date() -> None:
+    """
+    The max_date upper bound is included in the SQL.
+    """
+
+    conn, cur = make_conn()
+    cur.fetchall.return_value = []
+
+    gp.get_reference_minutes(
+        conn=conn,
+        last_date=datetime.date(2026, 1, 2),
+        max_date=datetime.date(2026, 1, 5),
+    )
+
+    sql = cur.execute.call_args.args[0]
+
+    assert "2026-01-05" in sql
+    assert "ref_datetime::date <=" in sql
 
 
 # function : get_last_date_ticker()

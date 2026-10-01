@@ -80,9 +80,19 @@ def stock_data_dag() -> None:
     @task(max_active_tis_per_dagrun=MAX_CONCURRENT_TICKERS)
     def gap_fill_ticker(ticker: m.Ticker, last_date: datetime.date) -> None:
         with db_session() as conn:
-            reference_minutes = gp.get_reference_minutes(conn=conn, last_date=last_date)
-
             existing_data = gp.get_existing_values(conn=conn, last_date=last_date, ticker=ticker)
+
+            if existing_data.empty:
+                return
+
+            max_raw_datetime = cast(
+                datetime.datetime,
+                existing_data["ref_datetime"].max(),
+            ).date()
+
+            reference_minutes = gp.get_reference_minutes(
+                conn=conn, last_date=last_date, max_date=max_raw_datetime
+            )
 
             seed = gp.get_last_close_from_prices(conn=conn, ticker=ticker, before=last_date)
 
