@@ -1,7 +1,5 @@
 # homelab
 
-[![CI](https://github.com/piercarloponci/homelab/actions/workflows/ci.yml/badge.svg)](https://github.com/piercarloponci/homelab/actions/workflows/ci.yml)
-
 A monorepo for everything I self-host on my home server. Each service lives under `services/` or `shared/` and runs via Docker Compose, with shared infrastructure (Postgres, Airflow) factored out so multiple services can reuse it rather than each spinning up their own.
 
 The first project in here is a stock-data pipeline: scheduled ingestion of minute-level OHLCV data, gap-filled into a clean per-minute series, orchestrated with Airflow and backed by Postgres. It's a first iteration — functional end to end, but still rough in places. See [Known limitations](#known-limitations).
